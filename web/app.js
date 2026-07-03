@@ -57,18 +57,33 @@ function boot(sb) {
     }
   }
 
+  const LOGIN_LABEL = 'Enviar link de acesso';
   $('#loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = $('#loginBtn'), msg = $('#loginMsg');
+    if (btn.disabled) return;                       // já enviando ou em cooldown
     const email = $('#email').value.trim();
     if (!email) return;
-    const btn = $('#loginBtn'), msg = $('#loginMsg');
-    btn.disabled = true; msg.className = 'banner'; msg.textContent = '';
+    btn.disabled = true; btn.textContent = 'Enviando…';
+    msg.className = 'banner'; msg.textContent = '';
     const { error } = await sb.auth.signInWithOtp({
       email, options: { emailRedirectTo: window.location.href }
     });
-    btn.disabled = false;
-    if (error) { msg.className = 'banner err'; msg.textContent = 'Não deu pra enviar: ' + error.message; }
-    else { msg.className = 'banner ok'; msg.textContent = 'Link enviado! Abra o e-mail (' + email + ') e clique pra entrar.'; }
+    if (error) {                                    // deixa tentar de novo (ex.: corrigir e-mail)
+      msg.className = 'banner err'; msg.textContent = 'Não deu pra enviar: ' + error.message;
+      btn.textContent = LOGIN_LABEL; btn.disabled = false;
+      return;
+    }
+    msg.className = 'banner ok';
+    msg.textContent = 'Link enviado! Abra o e-mail (' + email + ') e clique pra entrar.';
+    // cooldown de 60s pra evitar reenvios acidentais (poupa a cota de e-mail)
+    let s = 60;
+    btn.textContent = 'Reenviar em ' + s + 's';
+    const timer = setInterval(() => {
+      s -= 1;
+      if (s <= 0) { clearInterval(timer); btn.textContent = LOGIN_LABEL; btn.disabled = false; }
+      else btn.textContent = 'Reenviar em ' + s + 's';
+    }, 1000);
   });
 
   $('#logout').addEventListener('click', () => sb.auth.signOut());
