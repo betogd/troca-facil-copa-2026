@@ -192,6 +192,16 @@
   .matchhead .d{margin:2px 0 0}
   .matchhead .btn{flex:0 0 auto;padding:9px 13px}
   .chip.more{background:transparent;border-style:dashed}
+  /* Compositor de solicitação (T7) */
+  dialog#composer{border:0;border-radius:16px;padding:0;width:min(520px,calc(100% - 28px));max-height:calc(100dvh - 32px);overflow:auto;background:var(--paper);color:var(--ink);box-shadow:0 24px 64px rgba(15,20,68,.32)}
+  dialog#composer::backdrop{background:rgba(15,20,68,.45)}
+  #composer .sheet{padding:16px}
+  #composer .chead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+  #composer .chead h3{margin:0;font-family:Anton,sans-serif;font-weight:400;letter-spacing:.3px;text-transform:uppercase;font-size:18px}
+  #composer .x{border:0;background:transparent;font-size:18px;line-height:1;cursor:pointer;color:var(--ink2);padding:6px 9px;border-radius:9px}
+  #composer .x:hover{background:#F0F2F8}
+  #composer .result{margin-bottom:12px}
+  #composer textarea{width:100%;font-family:inherit;word-break:normal;min-height:96px}
 </style>
 </head>
 <body data-screen="loading">
@@ -309,6 +319,26 @@ window.SUPABASE_ANON_KEY = "eyJ...";</textarea>
   </section>
 </div>
 <div class="toast" id="toast"></div>
+
+<dialog id="composer" aria-labelledby="cTitle">
+  <div class="sheet">
+    <div class="chead">
+      <h3 id="cTitle">Solicitar troca</h3>
+      <button class="x" id="cClose" type="button" aria-label="Fechar">✕</button>
+    </div>
+    <div class="result" id="cLists"></div>
+    <div class="field">
+      <label for="cMsg">Mensagem (pode editar)</label>
+      <textarea id="cMsg"></textarea>
+    </div>
+    <div class="banner" id="cBanner"></div>
+    <div class="btnrow">
+      <button class="btn green" id="cSend" type="button">Enviar solicitação</button>
+      <button class="btn wpp" id="cWpp" type="button">Enviar no WhatsApp</button>
+    </div>
+  </div>
+</dialog>
+
 <script src="config.js"></script>
 <script type="module" src="app.js"></script>
 </body>
