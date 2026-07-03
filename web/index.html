@@ -230,6 +230,12 @@
   .chatbar{display:flex;gap:8px}
   .chatbar input{flex:1;border:1px solid var(--line);border-radius:12px;padding:11px 13px;font-size:14px;background:#F7F9FE;color:var(--ink)}
   .chatbar .btn{flex:0 0 auto}
+  /* Cadastro de colecionador */
+  dialog#profileForm{border:0;border-radius:16px;padding:0;width:min(460px,calc(100% - 28px));max-height:calc(100dvh - 32px);overflow:auto;background:var(--paper);color:var(--ink);box-shadow:0 24px 64px rgba(15,20,68,.32)}
+  dialog#profileForm::backdrop{background:rgba(15,20,68,.45)}
+  #profileForm .sheet{padding:16px}
+  .field select{border:1px solid var(--line);border-radius:12px;padding:11px 13px;font-size:14px;color:var(--ink);background:#F7F9FE;width:100%}
+  .field select:disabled{opacity:.6;cursor:not-allowed}
 </style>
 </head>
 <body data-screen="loading">
@@ -250,7 +256,7 @@
           <select id="prof" aria-label="Escolher colecionador"></select>
         </div>
         <button class="mini" id="newProf">+ Novo</button>
-        <button class="mini" id="renProf">Renomear</button>
+        <button class="mini" id="renProf">Editar</button>
         <span class="spacer"></span>
         <span class="muted" id="userEmail" title="conta conectada"></span>
         <button class="mini" id="logout">Sair</button>
@@ -391,6 +397,31 @@ window.SUPABASE_ANON_KEY = "eyJ...";</textarea>
     <form id="chForm" class="chatbar">
       <input id="chInput" placeholder="Escreva uma mensagem…" autocomplete="off" maxlength="2000">
       <button class="btn green" id="chSend" type="submit">Enviar</button>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="profileForm" aria-labelledby="pfTitle">
+  <div class="sheet">
+    <div class="chead">
+      <h3 id="pfTitle">Novo colecionador</h3>
+      <button class="x" id="pfClose" type="button" aria-label="Fechar">✕</button>
+    </div>
+    <form id="pfForm">
+      <div class="field">
+        <label for="pfName">Nome do colecionador</label>
+        <input id="pfName" required maxlength="40" placeholder="Ex.: João" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="pfUf">Estado (UF)</label>
+        <select id="pfUf" required><option value="">Selecione…</option></select>
+      </div>
+      <div class="field">
+        <label for="pfCity">Cidade</label>
+        <select id="pfCity" required disabled><option value="">Escolha a UF primeiro</option></select>
+      </div>
+      <div class="banner" id="pfBanner"></div>
+      <button class="btn green block" id="pfSave" type="submit">Criar</button>
     </form>
   </div>
 </dialog>

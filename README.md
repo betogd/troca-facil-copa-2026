@@ -29,7 +29,9 @@ TrocaFacil/
 │  ├─ index.html                # telas: setup · login · álbum
 │  ├─ app.js                    # client Supabase, auth, perfis, coleção (ES module)
 │  ├─ catalog.js                # catálogo canônico (SPECIALS, TEAMS, ORDER + mapas)
-│  ├─ config.example.js         # modelo → copie para config.js (fora do git)
+│  ├─ municipios.js             # municípios do Brasil por UF (cadastro cidade/UF)
+│  ├─ config.js                 # chaves públicas do cliente (versionado; só publishable)
+│  ├─ config.example.js         # modelo de config.js
 │  └─ legacy-local.html         # versão offline anterior (referência de UI)
 ├─ HANDOFF.md
 └─ README.md
@@ -69,7 +71,7 @@ Implementado no frontend (`web/`):
 
 - [x] **T2** Esqueleto estático + client Supabase, visual portado do legacy.
 - [x] **T3** Login por **magic link** (`signInWithOtp`, sessão via `onAuthStateChange`).
-- [x] **T4** **Perfis** por conta: criar / renomear / selecionar, com `city`/`uf`/`city_norm`.
+- [x] **T4** **Perfis** por conta: criar / editar / selecionar, com `city`/`uf`/`city_norm`. Cadastro por **formulário** (modal) com UF + cidade de **lista fixa IBGE** (`web/municipios.js`), cidade filtrada pela UF — garante `city_norm` consistente.
 - [x] **T5** **Coleção no banco**: carrega `collection_items`, marca com upsert (debounce ~400ms, update otimista), zera com delete. KPIs a partir do banco.
 - [x] **§8 (segurança)** RPCs endurecidas — migration `0004_harden_rpc.sql` (`assert_owns` + revoke de `public`/`anon`). *Aplicar no banco na ordem dos migrations.*
 - [x] **T6** Aba **Procurar trocas**: filtro cidade/UF + toggles (estado inteiro / só mútuas) → `find_trade_matches`; cards com `give_count`/`get_count` e chips de amostra.
