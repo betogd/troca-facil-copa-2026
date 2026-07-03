@@ -86,6 +86,16 @@ function boot(sb) {
     }, 1000);
   });
 
+  $('#googleBtn').addEventListener('click', async () => {
+    const msg = $('#loginMsg');
+    msg.className = 'banner'; msg.textContent = '';
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
+    if (error) { msg.className = 'banner err'; msg.textContent = 'Não deu pra abrir o Google: ' + error.message; }
+  });
+
   $('#logout').addEventListener('click', () => sb.auth.signOut());
 
   // ---------- perfis (T4) ----------
