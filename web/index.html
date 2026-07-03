@@ -180,6 +180,18 @@
   .muted{color:var(--ink2);font-weight:600;font-size:12px;max-width:42vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .spacer{flex:1}
   code.k{background:#F7F9FE;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-family:ui-monospace,monospace;font-size:12px}
+  /* Trocar (T6) */
+  .tradefilters{display:flex;gap:8px}
+  .tradefilters .field{flex:1;margin-bottom:10px}
+  .tradefilters .uffield{flex:0 0 84px}
+  .checks{display:flex;gap:16px;flex-wrap:wrap;margin:2px 0 12px}
+  .chk{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--ink2);cursor:pointer}
+  .chk input{width:17px;height:17px;accent-color:var(--blue);cursor:pointer}
+  .matchhead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+  .matchhead h3{margin:0}
+  .matchhead .d{margin:2px 0 0}
+  .matchhead .btn{flex:0 0 auto;padding:9px 13px}
+  .chip.more{background:transparent;border-style:dashed}
 </style>
 </head>
 <body data-screen="loading">
@@ -274,9 +286,25 @@ window.SUPABASE_ANON_KEY = "eyJ...";</textarea>
     <section id="viewTrade" class="hide">
       <div class="card">
         <h3>Procurar trocas</h3>
-        <p class="d">Próximo passo do projeto (T6–T8): achar colecionadores na sua cidade e mandar solicitações de troca já preenchidas.</p>
-        <p class="hint">O motor já existe no banco (<code class="k">find_trade_matches</code> / <code class="k">trade_preview</code>). Esta aba será ligada a ele em seguida.</p>
+        <p class="d">Achamos colecionadores por perto com figurinhas que faltam pra você — e que querem as suas repetidas.</p>
+        <div class="tradefilters">
+          <div class="field">
+            <label for="tCity">Cidade</label>
+            <input id="tCity" placeholder="Ex.: Pato Branco" autocomplete="off">
+          </div>
+          <div class="field uffield">
+            <label for="tUf">UF</label>
+            <input id="tUf" placeholder="PR" maxlength="2" autocomplete="off">
+          </div>
+        </div>
+        <div class="checks">
+          <label class="chk"><input type="checkbox" id="tState"> Estado inteiro (UF)</label>
+          <label class="chk"><input type="checkbox" id="tMutual" checked> Só trocas mútuas</label>
+        </div>
+        <button class="btn blue block" id="tSearch">Buscar trocas</button>
+        <div class="banner" id="tBanner"></div>
       </div>
+      <div id="tResults"></div>
     </section>
   </section>
 </div>
