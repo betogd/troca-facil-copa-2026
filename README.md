@@ -49,7 +49,7 @@ TrocaFacil/
    `0001_schema.sql` → `0002_rls.sql` → `0003_functions.sql` → `0004_harden_rpc.sql` → `0005_trade_messages.sql` → `seed/0001_stickers_seed.sql`.
    Confirme: `select count(*) from stickers` = **980**.
    *(`alter publication … add table` em 0003 não é idempotente; ao reexecutar, ignore o erro "already member".)*
-2. **Auth.** Em **Authentication → Providers**, habilite **Email** (magic link).
+2. **Auth.** Em **Authentication → Providers**, habilite **Email** (magic link) e **Google** (OAuth — Client ID/Secret do Google Cloud; redirect URI `https://<ref>.supabase.co/auth/v1/callback`).
 3. **Config do cliente.** Copie o modelo e preencha suas chaves (Supabase → Settings → API):
    ```bash
    cp web/config.example.js web/config.js
