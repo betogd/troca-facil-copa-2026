@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Troca Fácil · Copa 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EAEDF4; --paper:#FFFFFF; --ink:#0F1444; --ink2:#5B6081; --line:#E2E6F0;
+    --green:#15A24A; --green-d:#0F7D39; --blue:#2563EB; --blue-d:#1B49B8;
+    --gold:#F4B740; --red:#E11D48; --shadow:0 1px 2px rgba(15,20,68,.06),0 8px 24px rgba(15,20,68,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(120% 60% at 100% 0%, #F4D06622 0%, transparent 55%),
+      radial-gradient(120% 60% at 0% 0%, #2563EB18 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink); font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    -webkit-text-size-adjust:100%; min-height:100vh;
+  }
+  .wrap{max-width:920px; margin:0 auto; padding:0 14px 96px}
+  a{color:var(--blue)}
+
+  /* ---------- Header ---------- */
+  header{position:sticky; top:0; z-index:20; padding:12px 0 10px;
+    background:linear-gradient(var(--bg) 78%, transparent);}
+  .brand{display:flex; align-items:center; gap:12px}
+  .mark{
+    flex:0 0 auto; width:46px; height:56px; border-radius:8px; position:relative;
+    background:linear-gradient(150deg,#101456,#22307e); box-shadow:var(--shadow);
+    display:grid; place-items:center; overflow:hidden;
+  }
+  .mark::before{content:""; position:absolute; inset:0;
+    background:linear-gradient(115deg,transparent 30%,#ffffff55 42%,transparent 55%);}
+  .mark b{font-family:Anton,Impact,sans-serif; color:#fff; font-size:26px; letter-spacing:.5px; line-height:1;
+    text-shadow:0 1px 0 #0006; transform:translateY(1px)}
+  .brand h1{font-family:Anton,Impact,sans-serif; font-weight:400; margin:0; line-height:.92;
+    font-size:clamp(22px,6vw,32px); letter-spacing:.4px; text-transform:uppercase}
+  .brand h1 span{color:var(--blue)}
+  .brand .sub{margin:2px 0 0; font-size:12px; color:var(--ink2); font-weight:600; letter-spacing:.2px}
+
+  .whobar{display:flex; gap:8px; align-items:center; margin-top:12px; flex-wrap:wrap}
+  .whobar label{font-size:12px; color:var(--ink2); font-weight:700}
+  select,input,button,textarea{font-family:inherit}
+  .who{display:flex; align-items:center; gap:6px; background:var(--paper); border:1px solid var(--line);
+    border-radius:999px; padding:5px 6px 5px 12px; box-shadow:var(--shadow)}
+  .who select{border:0; background:transparent; font-weight:800; color:var(--ink); font-size:14px; max-width:44vw}
+  .who select:focus{outline:none}
+  .mini{border:1px solid var(--line); background:var(--paper); color:var(--ink); font-weight:700;
+    border-radius:999px; padding:6px 12px; font-size:13px; cursor:pointer; box-shadow:var(--shadow)}
+  .mini:hover{border-color:#c9cfe0}
+
+  /* ---------- Progress ---------- */
+  .stats{display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:center;
+    background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:14px; margin-top:12px; box-shadow:var(--shadow)}
+  .ring{--p:0; width:74px; height:74px; border-radius:50%; display:grid; place-items:center;
+    background:conic-gradient(var(--green) calc(var(--p)*1%), #EAEDF6 0);}
+  .ring i{width:58px; height:58px; border-radius:50%; background:var(--paper); display:grid; place-items:center;
+    font-style:normal; font-weight:800; font-size:16px}
+  .ring i small{display:block; font-size:9px; color:var(--ink2); font-weight:700; margin-top:-2px}
+  .kpis{display:flex; gap:10px; flex-wrap:wrap}
+  .kpi{flex:1 1 90px; background:#F7F9FE; border:1px solid var(--line); border-radius:12px; padding:9px 11px}
+  .kpi b{display:block; font-size:22px; line-height:1; font-family:Anton,sans-serif; font-weight:400}
+  .kpi small{color:var(--ink2); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.4px}
+  .kpi.h b{color:var(--green)} .kpi.f b{color:var(--gold)} .kpi.r b{color:var(--blue)}
+
+  /* ---------- Tabs ---------- */
+  .tabs{display:flex; gap:6px; margin:14px 0 4px; background:#DFE3EF; padding:5px; border-radius:14px; position:sticky; top:70px; z-index:15}
+  .tabs button{flex:1; border:0; background:transparent; padding:10px; border-radius:10px; font-weight:800; color:var(--ink2); cursor:pointer; font-size:14px}
+  .tabs button[aria-selected="true"]{background:var(--paper); color:var(--ink); box-shadow:var(--shadow)}
+
+  /* ---------- Controls ---------- */
+  .controls{display:flex; gap:8px; margin:12px 0; flex-wrap:wrap; align-items:center}
+  .search{flex:1 1 200px; display:flex; align-items:center; gap:8px; background:var(--paper); border:1px solid var(--line);
+    border-radius:12px; padding:9px 12px; box-shadow:var(--shadow)}
+  .search input{border:0; outline:0; width:100%; font-size:15px; background:transparent; color:var(--ink)}
+  .segs{display:flex; background:#DFE3EF; border-radius:12px; padding:4px; gap:3px}
+  .segs button{border:0; background:transparent; padding:8px 12px; border-radius:9px; font-weight:800; font-size:13px; color:var(--ink2); cursor:pointer}
+  .segs button[aria-pressed="true"]{background:var(--paper); color:var(--ink); box-shadow:var(--shadow)}
+  .hint{font-size:12px; color:var(--ink2); font-weight:600; margin:2px 2px 10px}
+  .hint b{color:var(--ink)}
+
+  /* ---------- Team card ---------- */
+  .team{background:var(--paper); border:1px solid var(--line); border-radius:16px; margin-bottom:12px; overflow:hidden; box-shadow:var(--shadow)}
+  .team>summary{list-style:none; cursor:pointer; padding:13px 15px; display:flex; align-items:center; gap:10px}
+  .team>summary::-webkit-details-marker{display:none}
+  .flagcode{flex:0 0 auto; font-family:Anton,sans-serif; font-size:13px; letter-spacing:.5px; color:#fff; background:var(--ink);
+    padding:5px 8px; border-radius:7px; min-width:44px; text-align:center}
+  .team .tname{font-weight:800; font-size:16px; flex:1}
+  .team .tprog{font-size:12px; font-weight:800; color:var(--ink2)}
+  .team .tprog.done{color:var(--green)}
+  .chev{transition:transform .2s; color:var(--ink2)}
+  details[open] .chev{transform:rotate(90deg)}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(64px,1fr)); gap:8px; padding:4px 14px 16px}
+
+  .slot{position:relative; border:1.5px dashed #C3C9DB; background:#F7F9FE; border-radius:11px; padding:8px 6px 7px;
+    cursor:pointer; user-select:none; -webkit-user-select:none; text-align:center; min-height:58px;
+    display:flex; flex-direction:column; justify-content:center; gap:2px; touch-action:manipulation; transition:transform .06s}
+  .slot:active{transform:scale(.94)}
+  .slot .n{font-family:Anton,sans-serif; font-size:18px; line-height:1; color:var(--ink)}
+  .slot .who{all:unset}
+  .slot .nm{font-size:9.5px; color:var(--ink2); font-weight:600; line-height:1.05; max-height:22px; overflow:hidden;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical}
+  .slot.have{border-style:solid; border-color:var(--green-d); background:linear-gradient(160deg,#E7F8ED,#D6F0DF)}
+  .slot.have .n{color:var(--green-d)}
+  .slot.repe{border-color:var(--blue-d); background:linear-gradient(160deg,#E6EDFF,#D3E0FF)}
+  .slot.repe .n{color:var(--blue-d)}
+  .slot .tick{position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%; background:var(--green);
+    color:#fff; font-size:12px; font-weight:900; display:none; place-items:center; box-shadow:0 2px 6px #15a24a66}
+  .slot.have .tick{display:grid}
+  .slot .dup{position:absolute; top:-7px; right:-7px; min-width:22px; height:22px; padding:0 4px; border-radius:11px;
+    background:var(--blue); color:#fff; font-size:12px; font-weight:900; display:none; align-items:center; justify-content:center;
+    box-shadow:0 2px 6px #2563eb66}
+  .slot.repe .tick{display:none}
+  .slot.repe .dup{display:flex}
+  .kindtag{position:absolute; top:5px; left:6px; font-size:8px; font-weight:900; color:#fff; background:var(--gold);
+    padding:1px 4px; border-radius:5px; letter-spacing:.3px; display:none}
+  .slot.k-logo .kindtag,.slot.k-photo .kindtag,.slot.k-special .kindtag{display:block}
+
+  .empty{padding:26px 14px; text-align:center; color:var(--ink2); font-weight:600}
+
+  /* ---------- Trade ---------- */
+  .card{background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:15px; margin-bottom:14px; box-shadow:var(--shadow)}
+  .card h3{margin:0 0 4px; font-size:16px; font-family:Anton,sans-serif; font-weight:400; letter-spacing:.3px; text-transform:uppercase}
+  .card p.d{margin:0 0 12px; font-size:13px; color:var(--ink2); font-weight:600}
+  .codebox{display:flex; gap:8px; align-items:stretch; flex-wrap:wrap}
+  .codebox textarea{flex:1 1 220px; min-height:64px; resize:vertical; border:1px solid var(--line); border-radius:12px; padding:10px 12px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; color:var(--ink); background:#F7F9FE; word-break:break-all}
+  .btn{border:0; border-radius:12px; padding:12px 16px; font-weight:800; font-size:14px; cursor:pointer; color:#fff; box-shadow:var(--shadow)}
+  .btn.green{background:var(--green)} .btn.green:hover{background:var(--green-d)}
+  .btn.blue{background:var(--blue)} .btn.blue:hover{background:var(--blue-d)}
+  .btn.wpp{background:#25D366}
+  .btn.ghost{background:var(--paper); color:var(--ink); border:1px solid var(--line)}
+  .btn.block{width:100%; margin-top:10px}
+  .btnrow{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+  .field{display:flex; flex-direction:column; gap:6px; margin-bottom:12px}
+  .field label{font-size:12px; font-weight:800; color:var(--ink2); text-transform:uppercase; letter-spacing:.4px}
+  .field input,.field textarea{border:1px solid var(--line); border-radius:12px; padding:11px 13px; font-size:14px; color:var(--ink); background:#F7F9FE}
+  .field textarea{min-height:70px; font-family:ui-monospace,monospace; font-size:12px; word-break:break-all}
+
+  .result{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  @media(max-width:560px){ .result{grid-template-columns:1fr} }
+  .col{background:#F7F9FE; border:1px solid var(--line); border-radius:14px; padding:12px; min-height:60px}
+  .col.give{border-top:4px solid var(--blue)} .col.get{border-top:4px solid var(--green)}
+  .col h4{margin:0 0 2px; font-size:14px; font-family:Anton,sans-serif; font-weight:400; letter-spacing:.3px; text-transform:uppercase}
+  .col .cnt{font-size:12px; font-weight:800; color:var(--ink2); margin-bottom:8px}
+  .col.give .cnt{color:var(--blue-d)} .col.get .cnt{color:var(--green-d)}
+  .tgroup{margin-bottom:9px}
+  .tgroup .tt{font-size:11px; font-weight:900; color:var(--ink2); text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px}
+  .chips{display:flex; flex-wrap:wrap; gap:5px}
+  .chip{font-size:12px; font-weight:800; padding:4px 8px; border-radius:8px; background:var(--paper); border:1px solid var(--line)}
+  .chip.b{color:var(--blue-d); border-color:#c7d5ff} .chip.g{color:var(--green-d); border-color:#c2e9cf}
+  .banner{border-radius:12px; padding:11px 13px; font-weight:800; font-size:14px; margin-bottom:12px; display:none}
+  .banner.ok{background:#E7F8ED; color:var(--green-d); display:block}
+  .banner.warn{background:#FFF3D6; color:#8a6100; display:block}
+  .banner.err{background:#FDE4EA; color:#a01235; display:block}
+
+  footer{margin-top:22px; padding-top:14px; border-top:1px solid var(--line); font-size:12px; color:var(--ink2); font-weight:600}
+  footer .row{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center}
+  .danger{color:var(--red); background:none; border:0; font-weight:800; cursor:pointer; font-size:12px}
+  .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px); background:var(--ink); color:#fff;
+    padding:11px 18px; border-radius:12px; font-weight:800; font-size:14px; opacity:0; transition:.25s; z-index:50; box-shadow:0 8px 30px #0004}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  .hide{display:none!important}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<style>
+  /* Telas: setup / login / app (alternadas por body[data-screen]) */
+  #loading,#setup,#login,#app,#appHeader{display:none}
+  body[data-screen="loading"] #loading,
+  body[data-screen="setup"] #setup,
+  body[data-screen="login"] #login,
+  body[data-screen="app"] #app,
+  body[data-screen="app"] #appHeader{display:block}
+  .muted{color:var(--ink2);font-weight:600;font-size:12px;max-width:42vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .spacer{flex:1}
+  code.k{background:#F7F9FE;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-family:ui-monospace,monospace;font-size:12px}
+</style>
+</head>
+<body data-screen="loading">
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="mark"><b>26</b></div>
+      <div>
+        <h1>Troca <span>Fácil</span></h1>
+        <p class="sub">Álbum FIFA Copa do Mundo 2026 · 980 figurinhas</p>
+      </div>
+    </div>
+
+    <div id="appHeader">
+      <div class="whobar">
+        <div class="who">
+          <label for="prof">Álbum de</label>
+          <select id="prof" aria-label="Escolher colecionador"></select>
+        </div>
+        <button class="mini" id="newProf">+ Novo</button>
+        <button class="mini" id="renProf">Renomear</button>
+        <span class="spacer"></span>
+        <span class="muted" id="userEmail" title="conta conectada"></span>
+        <button class="mini" id="logout">Sair</button>
+      </div>
+      <div class="stats">
+        <div class="ring" id="ring"><i id="ringtxt">0%<small>colado</small></i></div>
+        <div class="kpis">
+          <div class="kpi h"><b id="kHave">0</b><small>Coladas</small></div>
+          <div class="kpi f"><b id="kFalta">980</b><small>Faltam</small></div>
+          <div class="kpi r"><b id="kRepe">0</b><small>Repetidas</small></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- LOADING -->
+  <section id="loading" class="card"><p class="d" style="margin:0">Carregando…</p></section>
+
+  <!-- SETUP: config.js ausente ou com placeholders -->
+  <section id="setup">
+    <div class="card">
+      <h3>Configurar o Supabase</h3>
+      <p class="d">Pra ligar o app no banco, crie <code class="k">web/config.js</code> a partir de <code class="k">web/config.example.js</code> e preencha suas chaves:</p>
+      <div class="field">
+        <textarea readonly style="min-height:104px">cp web/config.example.js web/config.js
+
+# edite web/config.js:
+window.SUPABASE_URL = "https://SEU-PROJETO.supabase.co";
+window.SUPABASE_ANON_KEY = "eyJ...";</textarea>
+      </div>
+      <p class="hint">Valores em <b>Supabase → Settings → API</b>. A <b>anon key</b> é publicável (pode ir no cliente); a <b>service_role</b> nunca. O <code class="k">config.js</code> fica fora do git. Depois, recarregue a página.</p>
+    </div>
+  </section>
+
+  <!-- LOGIN: magic link -->
+  <section id="login">
+    <div class="card">
+      <h3>Entrar</h3>
+      <p class="d">Coloque o e-mail do responsável — mandamos um <b>link mágico</b> pra entrar, sem senha.</p>
+      <form id="loginForm">
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input id="email" type="email" required placeholder="voce@exemplo.com" autocomplete="email" inputmode="email">
+        </div>
+        <button class="btn green block" id="loginBtn" type="submit">Enviar link de acesso</button>
+      </form>
+      <div class="banner" id="loginMsg"></div>
+    </div>
+  </section>
+
+  <!-- APP -->
+  <section id="app">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" id="tabAlbum">📗 Meu álbum</button>
+      <button role="tab" aria-selected="false" id="tabTrade">🤝 Trocar</button>
+    </div>
+
+    <section id="viewAlbum">
+      <div class="controls">
+        <div class="search">🔎<input id="q" placeholder="Buscar por número, nome ou seleção…" autocomplete="off"></div>
+        <div class="segs" role="group" aria-label="Filtro">
+          <button id="fAll" aria-pressed="true">Todas</button>
+          <button id="fFalta" aria-pressed="false">Faltam</button>
+          <button id="fRepe" aria-pressed="false">Repetidas</button>
+        </div>
+      </div>
+      <p class="hint">Toque numa figurinha pra marcar que <b>tem</b>. Toque de novo pra virar <b>repetida</b> (×2, ×3…). <b>Segure</b> pra tirar uma. Salva sozinho no banco.</p>
+      <div id="list"></div>
+    </section>
+
+    <section id="viewTrade" class="hide">
+      <div class="card">
+        <h3>Procurar trocas</h3>
+        <p class="d">Próximo passo do projeto (T6–T8): achar colecionadores na sua cidade e mandar solicitações de troca já preenchidas.</p>
+        <p class="hint">O motor já existe no banco (<code class="k">find_trade_matches</code> / <code class="k">trade_preview</code>). Esta aba será ligada a ele em seguida.</p>
+      </div>
+    </section>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+<script src="config.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

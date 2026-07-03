@@ -1,0 +1,8 @@
+# config local (chaves publicáveis do Supabase entram aqui)
+web/config.js
+.env
+.env.*
+node_modules/
+.DS_Store
+supabase/.branches/
+supabase/.temp/

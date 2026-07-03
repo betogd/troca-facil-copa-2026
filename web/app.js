@@ -1,0 +1,298 @@
+// app.js — Troca Fácil (Copa 2026). Frontend estático conectado ao Supabase.
+// Escopo atual: T2 (client) · T3 (auth magic link) · T4 (perfis) · T5 (coleção no banco).
+// Visual e catálogo reaproveitados de legacy-local.html.
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { NAME, KIND, TEAMOF, KLABEL, GROUPS } from './catalog.js';
+
+const TOTAL = 980;
+const $ = s => document.querySelector(s);
+const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+function toast(m) {
+  const t = $('#toast'); t.textContent = m; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 1800);
+}
+function screen(name) { document.body.dataset.screen = name; }
+
+// ---------- guarda de configuração ----------
+const URL_ = window.SUPABASE_URL, KEY_ = window.SUPABASE_ANON_KEY;
+const configured = !!URL_ && !!KEY_ && !/SEU-PROJETO/.test(URL_) && !/COLE_A_ANON_KEY/.test(KEY_);
+
+if (!configured) {
+  screen('setup');
+} else {
+  boot(createClient(URL_, KEY_));
+}
+
+function boot(sb) {
+  // ---------- estado ----------
+  let profiles = [];
+  let activeId = null;
+  let counts = {};                 // sticker_id -> count (perfil ativo)
+  let filter = 'all', query = '';
+  const timers = new Map();        // sticker_id -> timeout (debounce de persistência)
+  const dirty = new Map();         // sticker_id -> { pid, count } pendente de gravação
+
+  // ---------- auth (T3) ----------
+  let ownerId = null;
+  let currentUid;                  // undefined até o 1º evento (distinto de null = deslogado)
+  sb.auth.getSession().then(({ data }) => applySession(data.session));
+  sb.auth.onAuthStateChange((_evt, session) => applySession(session));
+
+  function applySession(session) {
+    const uid = session?.user?.id ?? null;
+    if (uid === currentUid) return;   // ignora repetições (getSession + INITIAL_SESSION, token refresh…)
+    currentUid = uid;
+    if (session) {
+      ownerId = session.user.id;
+      $('#userEmail').textContent = session.user.email || '';
+      screen('app');
+      loadProfiles();
+    } else {
+      ownerId = null; profiles = []; activeId = null; counts = {};
+      screen('login');
+    }
+  }
+
+  $('#loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = $('#email').value.trim();
+    if (!email) return;
+    const btn = $('#loginBtn'), msg = $('#loginMsg');
+    btn.disabled = true; msg.className = 'banner'; msg.textContent = '';
+    const { error } = await sb.auth.signInWithOtp({
+      email, options: { emailRedirectTo: window.location.href }
+    });
+    btn.disabled = false;
+    if (error) { msg.className = 'banner err'; msg.textContent = 'Não deu pra enviar: ' + error.message; }
+    else { msg.className = 'banner ok'; msg.textContent = 'Link enviado! Abra o e-mail (' + email + ') e clique pra entrar.'; }
+  });
+
+  $('#logout').addEventListener('click', () => sb.auth.signOut());
+
+  // ---------- perfis (T4) ----------
+  async function loadProfiles() {
+    // Filtra por owner_id: o RLS permite ler o diretório (profiles_read), então sem isto
+    // viriam perfis de todo mundo, não só os meus.
+    const { data, error } = await sb.from('profiles')
+      .select('*').eq('owner_id', ownerId).order('created_at', { ascending: true });
+    if (error) { toast('Erro ao carregar perfis'); return; }
+    profiles = data || [];
+    if (!profiles.length) { await createProfile(true); return; }
+    if (!activeId || !profiles.some(p => p.id === activeId)) activeId = profiles[0].id;
+    renderProfiles();
+    loadCollection();
+  }
+
+  function renderProfiles() {
+    const sel = $('#prof'); sel.innerHTML = '';
+    for (const p of profiles) {
+      const o = document.createElement('option');
+      o.value = p.id;
+      o.textContent = p.display_name + (p.city ? ' · ' + p.city : '');
+      if (p.id === activeId) o.selected = true;
+      sel.appendChild(o);
+    }
+  }
+
+  $('#prof').addEventListener('change', (e) => { activeId = e.target.value; loadCollection(); });
+
+  function askCity() {
+    const city = (prompt('Cidade (pra achar trocas por perto). Pode deixar em branco:', '') || '').trim();
+    let uf = '';
+    if (city) uf = (prompt('Estado (UF), ex.: PR:', '') || '').trim().toUpperCase().slice(0, 2);
+    return { city, uf };
+  }
+
+  async function createProfile(first) {
+    const name = (prompt(first ? 'Bora criar o primeiro colecionador. Nome:' : 'Nome do novo colecionador:') || '').trim();
+    if (!name) { if (first) { renderProfiles(); loadCollection(); } return; }
+    const { city, uf } = askCity();
+    const { data, error } = await sb.from('profiles').insert({
+      owner_id: ownerId,              // exigido por NOT NULL + RLS (owner_id = auth.uid())
+      display_name: name,
+      city: city || null,
+      uf: uf || null,
+      city_norm: city ? norm(city) : null
+    }).select().single();
+    if (error) { toast('Erro ao criar perfil'); return; }
+    profiles.push(data); activeId = data.id;
+    renderProfiles(); loadCollection();
+    toast('Perfil "' + data.display_name + '" criado');
+  }
+  $('#newProf').addEventListener('click', () => createProfile(false));
+
+  async function renameProfile() {
+    const p = profiles.find(x => x.id === activeId); if (!p) return;
+    const name = (prompt('Nome do colecionador:', p.display_name) || '').trim();
+    if (!name) return;
+    const city = (prompt('Cidade:', p.city || '') || '').trim();
+    const uf = city ? (prompt('Estado (UF):', p.uf || '') || '').trim().toUpperCase().slice(0, 2) : '';
+    const patch = { display_name: name, city: city || null, uf: uf || null, city_norm: city ? norm(city) : null };
+    const { data, error } = await sb.from('profiles').update(patch).eq('id', p.id).select().single();
+    if (error) { toast('Erro ao salvar'); return; }
+    Object.assign(p, data); renderProfiles();
+    toast('Perfil atualizado');
+  }
+  $('#renProf').addEventListener('click', renameProfile);
+
+  // ---------- coleção (T5) ----------
+  async function loadCollection() {
+    counts = {};
+    renderStats(); renderList();
+    if (!activeId) return;
+    const { data, error } = await sb.from('collection_items')
+      .select('sticker_id,count').eq('profile_id', activeId);
+    if (error) { toast('Erro ao carregar coleção'); return; }
+    const next = {};
+    for (const r of (data || [])) next[r.sticker_id] = r.count;
+    counts = next;
+    renderStats(); renderList();
+  }
+
+  // Grava com debounce: count>=1 => upsert; count==0 => delete. Update otimista já ocorreu na UI.
+  function persist(id) {
+    dirty.set(id, { pid: activeId, count: counts[id] || 0 });
+    clearTimeout(timers.get(id));
+    timers.set(id, setTimeout(() => flush(id), 400));
+  }
+  async function flush(id) {
+    timers.delete(id);
+    const d = dirty.get(id); if (!d) return;
+    dirty.delete(id);
+    if (d.count <= 0) {
+      const { error } = await sb.from('collection_items').delete()
+        .eq('profile_id', d.pid).eq('sticker_id', id);
+      if (error) toast('Falha ao salvar ' + id);
+    } else {
+      const { error } = await sb.from('collection_items').upsert(
+        { profile_id: d.pid, sticker_id: id, count: d.count, updated_at: new Date().toISOString() },
+        { onConflict: 'profile_id,sticker_id' }
+      );
+      if (error) toast('Falha ao salvar ' + id);
+    }
+  }
+  // Não perde a última marcação se fechar a aba no meio do debounce.
+  window.addEventListener('beforeunload', () => { for (const id of [...timers.keys()]) flush(id); });
+
+  function bump(id, d) {
+    if (!activeId) { toast('Crie um colecionador primeiro (+ Novo)'); return; }
+    let n = (counts[id] || 0) + d; if (n < 0) n = 0;
+    if (n === 0) delete counts[id]; else counts[id] = n;
+    updateSlot(id); renderStats(); updateTeamProg(id);
+    if ((filter === 'falta' && n > 0) || (filter === 'repe' && n < 2)) renderList();
+    persist(id);
+  }
+
+  // ---------- KPIs ----------
+  function stat() {
+    let have = 0, repe = 0;
+    for (const id in counts) { const n = counts[id]; if (n >= 1) have++; if (n >= 2) repe += n - 1; }
+    return { have, falta: TOTAL - have, repe, pct: Math.round(have / TOTAL * 100) };
+  }
+  function renderStats() {
+    const s = stat();
+    $('#kHave').textContent = s.have; $('#kFalta').textContent = s.falta; $('#kRepe').textContent = s.repe;
+    $('#ring').style.setProperty('--p', s.pct);
+    $('#ringtxt').innerHTML = s.pct + '%<small>colado</small>';
+  }
+
+  // ---------- filtros / busca ----------
+  function setFilter(f) {
+    filter = f;
+    $('#fAll').setAttribute('aria-pressed', f === 'all');
+    $('#fFalta').setAttribute('aria-pressed', f === 'falta');
+    $('#fRepe').setAttribute('aria-pressed', f === 'repe');
+    renderList();
+  }
+  $('#fAll').onclick = () => setFilter('all');
+  $('#fFalta').onclick = () => setFilter('falta');
+  $('#fRepe').onclick = () => setFilter('repe');
+  $('#q').addEventListener('input', (e) => { query = norm(e.target.value); renderList(); });
+
+  function visible(id) {
+    const n = counts[id] || 0;
+    if (filter === 'falta' && n > 0) return false;
+    if (filter === 'repe' && n < 2) return false;
+    if (query) {
+      const hay = norm(id + ' ' + NAME[id] + ' ' + TEAMOF[id]);
+      if (!hay.includes(query)) return false;
+    }
+    return true;
+  }
+
+  // ---------- render do álbum (reaproveitado do legacy) ----------
+  function slotHTML(id) {
+    const n = counts[id] || 0, k = KIND[id];
+    const cls = ['slot', 'k-' + k]; if (n >= 2) cls.push('repe'); else if (n === 1) cls.push('have');
+    const num = id === '00' ? '00' : id.replace(/^[A-Z]+/, '');
+    return '<button class="' + cls.join(' ') + '" data-id="' + id + '" aria-label="' + id + ' ' + NAME[id] + '">'
+      + '<span class="kindtag">' + (KLABEL[k] || '') + '</span>'
+      + '<span class="tick">✓</span><span class="dup">×' + n + '</span>'
+      + '<span class="n">' + num + '</span>'
+      + '<span class="nm">' + NAME[id] + '</span></button>';
+  }
+
+  function renderList() {
+    const host = $('#list'); let html = ''; let any = false;
+    for (const g of GROUPS) {
+      const vis = g.ids.filter(visible); if (!vis.length) continue; any = true;
+      let have = 0; g.ids.forEach(id => { if ((counts[id] || 0) >= 1) have++; });
+      const done = have === g.ids.length;
+      const open = (filter !== 'all' || query) ? 'open' : '';
+      html += '<details class="team" ' + open + '>'
+        + '<summary>'
+        + '<span class="flagcode">' + (g.code === 'FWC' ? '★' : g.code) + '</span>'
+        + '<span class="tname">' + g.name + '</span>'
+        + '<span class="tprog' + (done ? ' done' : '') + '">' + have + '/' + g.ids.length + '</span>'
+        + '<span class="chev">▶</span>'
+        + '</summary>'
+        + '<div class="grid">' + vis.map(slotHTML).join('') + '</div>'
+        + '</details>';
+    }
+    host.innerHTML = any ? html : '<div class="empty">Nada por aqui com esse filtro. 🔍</div>';
+  }
+
+  function updateSlot(id) {
+    const b = $('.slot[data-id="' + CSS.escape(id) + '"]'); if (!b) return;
+    const n = counts[id] || 0;
+    b.classList.toggle('have', n === 1); b.classList.toggle('repe', n >= 2);
+    b.querySelector('.dup').textContent = '×' + n;
+  }
+  function updateTeamProg(id) {
+    const g = GROUPS.find(g => g.ids.includes(id)); if (!g) return;
+    const det = [...document.querySelectorAll('.team')]
+      .find(d => d.querySelector('.flagcode')?.textContent === (g.code === 'FWC' ? '★' : g.code));
+    if (!det) return;
+    let have = 0; g.ids.forEach(x => { if ((counts[x] || 0) >= 1) have++; });
+    const el = det.querySelector('.tprog');
+    el.textContent = have + '/' + g.ids.length;
+    el.classList.toggle('done', have === g.ids.length);
+  }
+
+  // tap = +1 ; segurar = -1 (idêntico ao legacy)
+  let holdTimer = null, held = false;
+  $('#list').addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('.slot'); if (!b) return; held = false;
+    holdTimer = setTimeout(() => { held = true; bump(b.dataset.id, -1); navigator.vibrate && navigator.vibrate(15); }, 420);
+  });
+  const cancelHold = () => clearTimeout(holdTimer);
+  $('#list').addEventListener('pointerup', cancelHold);
+  $('#list').addEventListener('pointerleave', cancelHold, true);
+  $('#list').addEventListener('pointercancel', cancelHold);
+  $('#list').addEventListener('click', (e) => {
+    const b = e.target.closest('.slot'); if (!b) return;
+    if (held) { held = false; return; }
+    bump(b.dataset.id, +1);
+  });
+
+  // ---------- abas ----------
+  function tab(which) {
+    const a = which === 'album';
+    $('#tabAlbum').setAttribute('aria-selected', a);
+    $('#tabTrade').setAttribute('aria-selected', !a);
+    $('#viewAlbum').classList.toggle('hide', !a);
+    $('#viewTrade').classList.toggle('hide', a);
+  }
+  $('#tabAlbum').onclick = () => tab('album');
+  $('#tabTrade').onclick = () => tab('trade');
+}
