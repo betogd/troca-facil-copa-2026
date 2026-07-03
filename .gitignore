@@ -1,5 +1,4 @@
-# config local (chaves publicáveis do Supabase entram aqui)
-web/config.js
+# web/config.js é versionado (só a chave publishable, pública por design); segredos (service_role) nunca aqui.
 .env
 .env.*
 node_modules/
