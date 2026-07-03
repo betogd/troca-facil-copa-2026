@@ -21,7 +21,8 @@ TrocaFacil/
 │  │  ├─ 0001_schema.sql        # tabelas + índices
 │  │  ├─ 0002_rls.sql           # Row Level Security
 │  │  ├─ 0003_functions.sql     # match, preview, realtime, grants
-│  │  └─ 0004_harden_rpc.sql    # endurece as RPCs (§8/T8): assert_owns + revoke
+│  │  ├─ 0004_harden_rpc.sql    # endurece as RPCs (§8/T8): assert_owns + revoke
+│  │  └─ 0005_trade_messages.sql # chat por troca (mensagens) + RLS + realtime
 │  └─ seed/
 │     └─ 0001_stickers_seed.sql # as 980 figurinhas
 ├─ web/
@@ -40,11 +41,12 @@ TrocaFacil/
 - `profiles` — colecionadores. Um `owner_id` (auth.users) pode ter **vários** perfis (um por filho).
 - `collection_items` — só o que a pessoa **tem** (`count >= 1`). Falta = ausência de linha. Repetida = `count >= 2`.
 - `trade_requests` — solicitações, com `offered`/`requested` congelados no envio.
+- `trade_messages` — chat por troca (mensagens dos dois lados), liberado só depois da troca **aceita**.
 
 ## Setup
 
 1. **Banco.** Crie um projeto no [Supabase](https://supabase.com). No **SQL Editor**, rode em ordem:
-   `0001_schema.sql` → `0002_rls.sql` → `0003_functions.sql` → `0004_harden_rpc.sql` → `seed/0001_stickers_seed.sql`.
+   `0001_schema.sql` → `0002_rls.sql` → `0003_functions.sql` → `0004_harden_rpc.sql` → `0005_trade_messages.sql` → `seed/0001_stickers_seed.sql`.
    Confirme: `select count(*) from stickers` = **980**.
    *(`alter publication … add table` em 0003 não é idempotente; ao reexecutar, ignore o erro "already member".)*
 2. **Auth.** Em **Authentication → Providers**, habilite **Email** (magic link).
@@ -73,9 +75,10 @@ Implementado no frontend (`web/`):
 - [x] **T6** Aba **Procurar trocas**: filtro cidade/UF + toggles (estado inteiro / só mútuas) → `find_trade_matches`; cards com `give_count`/`get_count` e chips de amostra.
 - [x] **T7** **Solicitar troca**: card → `trade_preview` → compositor (modal) com a troca montada e mensagem editável pré-preenchida → `insert` em `trade_requests`; atalho de WhatsApp.
 - [x] **T8** Aba **Mensagens**: recebidas/enviadas com `offered`/`requested` (nomes via catálogo), **aceitar/recusar** (`update status`), **realtime** (`subscribe` em `trade_requests`) com badge/toast.
+- [x] **Chat da troca** (evolução §9): depois da troca **aceita**, os dois lados combinam o encontro por mensagens — conversa em modal com **realtime** (`trade_messages`, migration `0005`). *Aplicar `0005` no banco.*
 
 Próximos passos (ver `HANDOFF.md`):
-- [ ] **T9** Importar a coleção do Roberto pelo **código C26** (decoder em `HANDOFF.md` §7; `ORDER` está em `web/catalog.js`).
+- [x] ~~**T9** Importar coleção (código C26)~~ — **descartado**: todos os cadastros serão novos.
 - [ ] **T10** Deploy e documentar a URL.
 
 ## Segurança
