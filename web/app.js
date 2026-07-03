@@ -3,6 +3,7 @@
 // Visual e catálogo reaproveitados de legacy-local.html.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { NAME, KIND, TEAMOF, KLABEL, GROUPS } from './catalog.js';
+import { UFS, MUNICIPIOS } from './municipios.js';
 
 const TOTAL = 980;
 const $ = s => document.querySelector(s);
@@ -106,7 +107,7 @@ function boot(sb) {
       .select('*').eq('owner_id', ownerId).order('created_at', { ascending: true });
     if (error) { toast('Erro ao carregar perfis'); return; }
     profiles = data || [];
-    if (!profiles.length) { await createProfile(true); return; }
+    if (!profiles.length) { activeId = null; renderProfiles(); loadCollection(); openProfileForm('create', null); return; }
     if (!activeId || !profiles.some(p => p.id === activeId)) activeId = profiles[0].id;
     renderProfiles();
     loadCollection();
@@ -125,44 +126,74 @@ function boot(sb) {
 
   $('#prof').addEventListener('change', (e) => { activeId = e.target.value; loadCollection(); });
 
-  function askCity() {
-    const city = (prompt('Cidade (pra achar trocas por perto). Pode deixar em branco:', '') || '').trim();
-    let uf = '';
-    if (city) uf = (prompt('Estado (UF), ex.: PR:', '') || '').trim().toUpperCase().slice(0, 2);
-    return { city, uf };
+  // ---------- cadastro de colecionador (nome + UF + cidade de lista fixa) ----------
+  const pfDlg = $('#profileForm');
+  let pfMode = 'create', pfEditId = null, pfUfInit = false;
+
+  function ensureUfOptions() {
+    if (pfUfInit) return;
+    const sel = $('#pfUf');
+    for (const uf of UFS) { const o = document.createElement('option'); o.value = uf; o.textContent = uf; sel.appendChild(o); }
+    pfUfInit = true;
   }
 
-  async function createProfile(first) {
-    const name = (prompt(first ? 'Bora criar o primeiro colecionador. Nome:' : 'Nome do novo colecionador:') || '').trim();
-    if (!name) { if (first) { renderProfiles(); loadCollection(); } return; }
-    const { city, uf } = askCity();
-    const { data, error } = await sb.from('profiles').insert({
-      owner_id: ownerId,              // exigido por NOT NULL + RLS (owner_id = auth.uid())
-      display_name: name,
-      city: city || null,
-      uf: uf || null,
-      city_norm: city ? norm(city) : null
-    }).select().single();
-    if (error) { toast('Erro ao criar perfil'); return; }
-    profiles.push(data); activeId = data.id;
-    renderProfiles(); loadCollection();
-    toast('Perfil "' + data.display_name + '" criado');
+  function fillCities(uf, selected) {
+    const sel = $('#pfCity');
+    const list = uf ? (MUNICIPIOS[uf] || []) : [];
+    if (!list.length) { sel.innerHTML = '<option value="">Escolha a UF primeiro</option>'; sel.disabled = true; return; }
+    sel.innerHTML = '<option value="">Selecione a cidade…</option>';
+    for (const c of list) {
+      const o = document.createElement('option'); o.value = c; o.textContent = c;
+      if (c === selected) o.selected = true;
+      sel.appendChild(o);
+    }
+    sel.disabled = false;
   }
-  $('#newProf').addEventListener('click', () => createProfile(false));
+  $('#pfUf').addEventListener('change', (e) => fillCities(e.target.value, null));
 
-  async function renameProfile() {
-    const p = profiles.find(x => x.id === activeId); if (!p) return;
-    const name = (prompt('Nome do colecionador:', p.display_name) || '').trim();
-    if (!name) return;
-    const city = (prompt('Cidade:', p.city || '') || '').trim();
-    const uf = city ? (prompt('Estado (UF):', p.uf || '') || '').trim().toUpperCase().slice(0, 2) : '';
-    const patch = { display_name: name, city: city || null, uf: uf || null, city_norm: city ? norm(city) : null };
-    const { data, error } = await sb.from('profiles').update(patch).eq('id', p.id).select().single();
-    if (error) { toast('Erro ao salvar'); return; }
-    Object.assign(p, data); renderProfiles();
-    toast('Perfil atualizado');
+  function openProfileForm(mode, profile) {
+    ensureUfOptions();
+    pfMode = mode; pfEditId = profile ? profile.id : null;
+    $('#pfTitle').textContent = mode === 'edit' ? 'Editar colecionador' : 'Novo colecionador';
+    $('#pfSave').textContent = mode === 'edit' ? 'Salvar' : 'Criar';
+    $('#pfBanner').className = 'banner'; $('#pfBanner').textContent = '';
+    $('#pfName').value = profile ? (profile.display_name || '') : '';
+    $('#pfUf').value = profile && profile.uf ? profile.uf : '';
+    fillCities($('#pfUf').value, profile ? profile.city : null);
+    if (pfDlg.showModal) pfDlg.showModal(); else pfDlg.setAttribute('open', '');
+    $('#pfName').focus();
   }
-  $('#renProf').addEventListener('click', renameProfile);
+  function closeProfileForm() { if (pfDlg.open) pfDlg.close(); }
+  $('#pfClose').addEventListener('click', closeProfileForm);
+  pfDlg.addEventListener('click', (e) => { if (e.target === pfDlg) closeProfileForm(); });
+
+  $('#pfForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = $('#pfName').value.trim(), uf = $('#pfUf').value, city = $('#pfCity').value;
+    const banner = $('#pfBanner');
+    if (!name || !uf || !city) { banner.className = 'banner warn'; banner.textContent = 'Preencha nome, UF e cidade.'; return; }
+    $('#pfSave').disabled = true;
+    const patch = { display_name: name, uf, city, city_norm: norm(city) };
+    const res = (pfMode === 'edit' && pfEditId)
+      ? await sb.from('profiles').update(patch).eq('id', pfEditId).select().single()
+      : await sb.from('profiles').insert({ owner_id: ownerId, ...patch }).select().single();
+    $('#pfSave').disabled = false;
+    if (res.error) { banner.className = 'banner err'; banner.textContent = 'Erro ao salvar: ' + res.error.message; return; }
+    if (pfMode === 'edit') {
+      const p = profiles.find(x => x.id === pfEditId); if (p) Object.assign(p, res.data);
+      renderProfiles(); toast('Colecionador atualizado');
+    } else {
+      profiles.push(res.data); activeId = res.data.id;
+      renderProfiles(); loadCollection(); toast('Colecionador "' + res.data.display_name + '" criado');
+    }
+    closeProfileForm();
+  });
+
+  $('#newProf').addEventListener('click', () => openProfileForm('create', null));
+  $('#renProf').addEventListener('click', () => {
+    const p = profiles.find(x => x.id === activeId);
+    openProfileForm(p ? 'edit' : 'create', p || null);
+  });
 
   // ---------- coleção (T5) ----------
   async function loadCollection() {
