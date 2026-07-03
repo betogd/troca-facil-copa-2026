@@ -525,6 +525,14 @@ function boot(sb) {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trade_requests', filter: 'from_profile=eq.' + activeId }, () => {
         if (currentTab === 'inbox') loadInbox();
       })
+      // Mensagens de chat: o RLS já entrega só as das minhas trocas. Avisa quando é do outro lado.
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trade_messages' }, (payload) => {
+        const m = payload.new;
+        if (!m || m.sender_profile === activeId) return;                         // minhas, ignora
+        if (chatDlg.open && chatReq && chatReq.id === m.request_id) return;       // já estou vendo essa conversa
+        unread++; updateBadge();
+        toast('Nova mensagem no chat! 💬');
+      })
       .subscribe();
   }
 
