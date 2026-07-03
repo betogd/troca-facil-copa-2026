@@ -202,6 +202,17 @@
   #composer .x:hover{background:#F0F2F8}
   #composer .result{margin-bottom:12px}
   #composer textarea{width:100%;font-family:inherit;word-break:normal;min-height:96px}
+  /* Mensagens (T8) */
+  .tabs .badge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;font-weight:900}
+  .inboxh{font-family:Anton,sans-serif;font-weight:400;letter-spacing:.3px;text-transform:uppercase;font-size:15px;color:var(--ink2);margin:14px 2px 8px}
+  .reqhead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px}
+  .reqhead h4{margin:0;font-size:15px}
+  .reqhead .d{margin:2px 0 0}
+  .status{flex:0 0 auto;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.3px;padding:3px 8px;border-radius:8px;white-space:nowrap}
+  .status.pending{background:#FFF3D6;color:#8a6100}
+  .status.accepted{background:#E7F8ED;color:var(--green-d)}
+  .status.declined,.status.cancelled{background:#FDE4EA;color:#a01235}
+  .reqmsg{font-size:13px;color:var(--ink2);font-weight:600;background:#F7F9FE;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:6px 0 10px}
 </style>
 </head>
 <body data-screen="loading">
@@ -278,6 +289,7 @@ window.SUPABASE_ANON_KEY = "eyJ...";</textarea>
     <div class="tabs" role="tablist">
       <button role="tab" aria-selected="true" id="tabAlbum">📗 Meu álbum</button>
       <button role="tab" aria-selected="false" id="tabTrade">🤝 Trocar</button>
+      <button role="tab" aria-selected="false" id="tabMsgs">📩 Mensagens<span class="badge hide" id="msgBadge">0</span></button>
     </div>
 
     <section id="viewAlbum">
@@ -315,6 +327,13 @@ window.SUPABASE_ANON_KEY = "eyJ...";</textarea>
         <div class="banner" id="tBanner"></div>
       </div>
       <div id="tResults"></div>
+    </section>
+
+    <section id="viewInbox" class="hide">
+      <h3 class="inboxh">📥 Recebidas</h3>
+      <div id="inboxRecv"></div>
+      <h3 class="inboxh">📤 Enviadas</h3>
+      <div id="inboxSent"></div>
     </section>
   </section>
 </div>

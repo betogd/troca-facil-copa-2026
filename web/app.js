@@ -29,6 +29,7 @@ function boot(sb) {
   let activeId = null;
   let counts = {};                 // sticker_id -> count (perfil ativo)
   let filter = 'all', query = '';
+  let currentTab = 'album';
   const timers = new Map();        // sticker_id -> timeout (debounce de persistência)
   const dirty = new Map();         // sticker_id -> { pid, count } pendente de gravação
 
@@ -49,6 +50,8 @@ function boot(sb) {
       loadProfiles();
     } else {
       ownerId = null; profiles = []; activeId = null; counts = {};
+      if (inboxChannel) { sb.removeChannel(inboxChannel); inboxChannel = null; }
+      unread = 0; updateBadge();
       screen('login');
     }
   }
@@ -139,6 +142,8 @@ function boot(sb) {
   async function loadCollection() {
     counts = {};
     renderStats(); renderList();
+    subscribeInbox();
+    if (currentTab === 'inbox') { unread = 0; updateBadge(); loadInbox(); } else seedBadge();
     if (!activeId) return;
     const { data, error } = await sb.from('collection_items')
       .select('sticker_id,count').eq('profile_id', activeId);
@@ -422,15 +427,115 @@ function boot(sb) {
     toast('Solicitação enviada pra ' + to.name + '! 🎉');
   });
 
+  // ---------- T8: caixa de entrada + realtime ----------
+  let unread = 0;
+  let inboxChannel = null;
+
+  function updateBadge() {
+    const b = $('#msgBadge');
+    if (unread > 0) { b.textContent = unread > 9 ? '9+' : String(unread); b.classList.remove('hide'); }
+    else b.classList.add('hide');
+  }
+
+  async function seedBadge() {
+    if (!activeId) { unread = 0; updateBadge(); return; }
+    const { count, error } = await sb.from('trade_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('to_profile', activeId).eq('status', 'pending');
+    if (!error) { unread = count || 0; updateBadge(); }
+  }
+
+  const STATUS_LABEL = { pending: 'Pendente', accepted: 'Aceita', declined: 'Recusada', cancelled: 'Cancelada' };
+  function fmtDate(s) { try { return new Date(s).toLocaleDateString('pt-BR'); } catch (e) { return ''; } }
+
+  function namedChips(ids, cls) {
+    if (!ids || !ids.length) return '<div class="cnt">—</div>';
+    return '<div class="chips">' + ids.map(id =>
+      '<span class="chip ' + cls + '">' + escapeHtml(id + (NAME[id] ? ' ' + NAME[id] : '')) + '</span>'
+    ).join('') + '</div>';
+  }
+
+  function requestCard(r, kind) {
+    // kind 'recv' = sou destinatário; 'sent' = sou remetente.
+    const who = (kind === 'recv' ? r.sender : r.recipient) || {};
+    const local = [who.city, who.uf].filter(Boolean).join(' · ');
+    const offered = r.offered || [], requested = r.requested || [];
+    const giveIds = kind === 'recv' ? requested : offered;   // o que EU dou (azul)
+    const getIds = kind === 'recv' ? offered : requested;    // o que EU recebo (verde)
+    const actions = (kind === 'recv' && r.status === 'pending')
+      ? '<div class="btnrow"><button class="btn green" data-act="accept" data-id="' + r.id + '">Aceitar</button>'
+      + '<button class="btn ghost" data-act="decline" data-id="' + r.id + '">Recusar</button></div>'
+      : '';
+    return '<div class="card">'
+      + '<div class="reqhead">'
+      + '<div><h4>' + escapeHtml(who.display_name || 'colecionador') + '</h4>'
+      + '<p class="d">' + escapeHtml(local || '—') + ' · ' + fmtDate(r.created_at) + '</p></div>'
+      + '<span class="status ' + r.status + '">' + (STATUS_LABEL[r.status] || r.status) + '</span>'
+      + '</div>'
+      + (r.message ? '<div class="reqmsg">' + escapeHtml(r.message) + '</div>' : '')
+      + '<div class="result">'
+      + '<div class="col give"><h4>Você dá</h4><div class="cnt">' + plural(giveIds.length) + '</div>' + namedChips(giveIds, 'b') + '</div>'
+      + '<div class="col get"><h4>Você recebe</h4><div class="cnt">' + plural(getIds.length) + '</div>' + namedChips(getIds, 'g') + '</div>'
+      + '</div>'
+      + actions
+      + '</div>';
+  }
+
+  async function loadInbox() {
+    const recvHost = $('#inboxRecv'), sentHost = $('#inboxSent');
+    if (!activeId) { recvHost.innerHTML = sentHost.innerHTML = '<div class="empty">Escolha um colecionador.</div>'; return; }
+    recvHost.innerHTML = sentHost.innerHTML = '<div class="empty">Carregando…</div>';
+    const cols = '*, sender:from_profile(display_name,city,uf), recipient:to_profile(display_name,city,uf)';
+    const [recv, sent] = await Promise.all([
+      sb.from('trade_requests').select(cols).eq('to_profile', activeId).order('created_at', { ascending: false }),
+      sb.from('trade_requests').select(cols).eq('from_profile', activeId).order('created_at', { ascending: false })
+    ]);
+    recvHost.innerHTML = recv.error ? '<div class="empty">Erro ao carregar recebidas.</div>'
+      : (recv.data.length ? recv.data.map(r => requestCard(r, 'recv')).join('') : '<div class="empty">Nenhuma solicitação recebida ainda.</div>');
+    sentHost.innerHTML = sent.error ? '<div class="empty">Erro ao carregar enviadas.</div>'
+      : (sent.data.length ? sent.data.map(r => requestCard(r, 'sent')).join('') : '<div class="empty">Você ainda não enviou solicitações.</div>');
+  }
+
+  async function setStatus(id, status) {
+    const { error } = await sb.from('trade_requests').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) { toast('Erro: ' + error.message); }
+    else { toast(status === 'accepted' ? 'Troca aceita! 🎉' : 'Solicitação recusada'); }
+    loadInbox();
+  }
+
+  $('#inboxRecv').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    b.disabled = true;
+    setStatus(b.dataset.id, b.dataset.act === 'accept' ? 'accepted' : 'declined');
+  });
+
+  function subscribeInbox() {
+    if (inboxChannel) { sb.removeChannel(inboxChannel); inboxChannel = null; }
+    if (!activeId) return;
+    inboxChannel = sb.channel('inbox-' + activeId)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trade_requests', filter: 'to_profile=eq.' + activeId }, () => {
+        if (currentTab === 'inbox') loadInbox(); else { unread++; updateBadge(); }
+        toast('Nova solicitação de troca! 📩');
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trade_requests', filter: 'from_profile=eq.' + activeId }, () => {
+        if (currentTab === 'inbox') loadInbox();
+      })
+      .subscribe();
+  }
+
   // ---------- abas ----------
   function tab(which) {
-    const a = which === 'album';
-    $('#tabAlbum').setAttribute('aria-selected', a);
-    $('#tabTrade').setAttribute('aria-selected', !a);
-    $('#viewAlbum').classList.toggle('hide', !a);
-    $('#viewTrade').classList.toggle('hide', a);
-    if (!a) { prefillTrade(); if ($('#tCity').value || $('#tUf').value) searchTrades(); }
+    currentTab = which;
+    $('#tabAlbum').setAttribute('aria-selected', which === 'album');
+    $('#tabTrade').setAttribute('aria-selected', which === 'trade');
+    $('#tabMsgs').setAttribute('aria-selected', which === 'inbox');
+    $('#viewAlbum').classList.toggle('hide', which !== 'album');
+    $('#viewTrade').classList.toggle('hide', which !== 'trade');
+    $('#viewInbox').classList.toggle('hide', which !== 'inbox');
+    if (which === 'trade') { prefillTrade(); if ($('#tCity').value || $('#tUf').value) searchTrades(); }
+    if (which === 'inbox') { unread = 0; updateBadge(); loadInbox(); }
   }
   $('#tabAlbum').onclick = () => tab('album');
   $('#tabTrade').onclick = () => tab('trade');
+  $('#tabMsgs').onclick = () => tab('inbox');
 }
