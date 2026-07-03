@@ -71,10 +71,9 @@ Implementado no frontend (`web/`):
 - [x] **T5** **Coleção no banco**: carrega `collection_items`, marca com upsert (debounce ~400ms, update otimista), zera com delete. KPIs a partir do banco.
 - [x] **§8 (segurança)** RPCs endurecidas — migration `0004_harden_rpc.sql` (`assert_owns` + revoke de `public`/`anon`). *Aplicar no banco na ordem dos migrations.*
 - [x] **T6** Aba **Procurar trocas**: filtro cidade/UF + toggles (estado inteiro / só mútuas) → `find_trade_matches`; cards com `give_count`/`get_count` e chips de amostra.
+- [x] **T7** **Solicitar troca**: card → `trade_preview` → compositor (modal) com a troca montada e mensagem editável pré-preenchida → `insert` em `trade_requests`; atalho de WhatsApp.
 
 Próximos passos (ver `HANDOFF.md`):
-
-- [ ] **T7** **Solicitar troca** com mensagem pré-preenchida (`trade_preview` → `trade_requests`).
 - [ ] **T8** Caixa de entrada em **realtime** (badge/toast em `trade_requests`).
 - [ ] **T9** Importar a coleção do Roberto pelo **código C26** (decoder em `HANDOFF.md` §7; `ORDER` está em `web/catalog.js`).
 - [ ] **T10** Deploy e documentar a URL.

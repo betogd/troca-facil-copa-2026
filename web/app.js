@@ -352,8 +352,74 @@ function boot(sb) {
 
   $('#tSearch').addEventListener('click', searchTrades);
   $('#tResults').addEventListener('click', (e) => {
-    const b = e.target.closest('button[data-to]'); if (!b) return;
-    toast('“Solicitar troca” chega na T7 🙂'); // TODO(T7): trade_preview + insert em trade_requests
+    const b = e.target.closest('button[data-to]'); if (!b || b.disabled) return;
+    const name = b.closest('.card')?.querySelector('h3')?.textContent || 'colecionador';
+    openComposer(b.dataset.to, name);
+  });
+
+  // ---------- T7: solicitar troca ----------
+  const dlg = $('#composer');
+  let composeTo = null;                          // { id, name }
+  let composePreview = { offered: [], requested: [] };
+
+  async function openComposer(toId, toName) {
+    composeTo = { id: toId, name: toName };
+    $('#cTitle').textContent = 'Trocar com ' + toName;
+    $('#cLists').innerHTML = '<div class="empty">Montando a troca…</div>';
+    $('#cBanner').className = 'banner'; $('#cBanner').textContent = '';
+    $('#cMsg').value = ''; $('#cSend').disabled = true;
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+    const { data, error } = await sb.rpc('trade_preview', { p_from: activeId, p_to: toId });
+    if (composeTo?.id !== toId) return;          // fechou/trocou no meio
+    if (error) { $('#cLists').innerHTML = ''; $('#cBanner').className = 'banner err'; $('#cBanner').textContent = 'Erro ao montar a troca: ' + error.message; return; }
+    const row = (data && data[0]) || { offered: [], requested: [] };
+    composePreview = { offered: row.offered || [], requested: row.requested || [] };
+    renderComposer(toName);
+  }
+
+  function renderComposer(toName) {
+    const { offered, requested } = composePreview;
+    $('#cLists').innerHTML =
+      '<div class="col give"><h4>Você dá</h4><div class="cnt">' + plural(offered.length) + '</div>' + chipsHTML(offered, offered.length, 'b') + '</div>'
+      + '<div class="col get"><h4>Você recebe</h4><div class="cnt">' + plural(requested.length) + '</div>' + chipsHTML(requested, requested.length, 'g') + '</div>';
+    $('#cMsg').value = defaultMessage(toName, offered, requested);
+    $('#cSend').disabled = (offered.length === 0 && requested.length === 0);
+  }
+
+  function defaultMessage(toName, offered, requested) {
+    const give = offered.length ? offered.join(', ') : '(nada agora)';
+    const get = requested.length ? requested.join(', ') : '(nada agora)';
+    return 'Oi, ' + toName + '! Bora trocar figurinha da Copa 2026? 📗⚽\n'
+      + 'Tenho pra você: ' + give + '.\n'
+      + 'Queria de você: ' + get + '.';
+  }
+
+  function closeComposer() { if (dlg.open) dlg.close(); composeTo = null; }
+  $('#cClose').addEventListener('click', closeComposer);
+  dlg.addEventListener('cancel', () => { composeTo = null; });                 // ESC
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) closeComposer(); }); // backdrop
+
+  $('#cWpp').addEventListener('click', () => {
+    window.open('https://wa.me/?text=' + encodeURIComponent($('#cMsg').value), '_blank');
+  });
+
+  $('#cSend').addEventListener('click', async () => {
+    if (!activeId || !composeTo) return;
+    const to = composeTo;
+    $('#cSend').disabled = true;
+    $('#cBanner').className = 'banner'; $('#cBanner').textContent = '';
+    const { error } = await sb.from('trade_requests').insert({
+      from_profile: activeId,
+      to_profile: to.id,
+      message: $('#cMsg').value.trim() || null,
+      offered: composePreview.offered,
+      requested: composePreview.requested
+    });
+    if (error) { $('#cSend').disabled = false; $('#cBanner').className = 'banner err'; $('#cBanner').textContent = 'Não deu pra enviar: ' + error.message; return; }
+    const cardBtn = $('#tResults button[data-to="' + CSS.escape(to.id) + '"]');
+    if (cardBtn) { cardBtn.textContent = 'Solicitado ✓'; cardBtn.disabled = true; cardBtn.classList.remove('green'); cardBtn.classList.add('ghost'); }
+    closeComposer();
+    toast('Solicitação enviada pra ' + to.name + '! 🎉');
   });
 
   // ---------- abas ----------
