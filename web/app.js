@@ -195,6 +195,35 @@ function boot(sb) {
     openProfileForm(p ? 'edit' : 'create', p || null);
   });
 
+  // ---------- excluir colecionador (apaga coleção + trocas + conversas por cascade) ----------
+  const cdDlg = $('#confirmDelete');
+  $('#delProf').addEventListener('click', () => {
+    const p = profiles.find(x => x.id === activeId);
+    if (!p) { toast('Escolha um colecionador primeiro'); return; }
+    $('#cdName').textContent = 'Colecionador: ' + p.display_name + (p.city ? ' · ' + p.city + (p.uf ? '/' + p.uf : '') : '');
+    $('#cdBanner').className = 'banner'; $('#cdBanner').textContent = '';
+    $('#cdConfirm').disabled = false;
+    if (cdDlg.showModal) cdDlg.showModal(); else cdDlg.setAttribute('open', '');
+  });
+  function closeConfirmDelete() { if (cdDlg.open) cdDlg.close(); }
+  $('#cdClose').addEventListener('click', closeConfirmDelete);
+  $('#cdCancel').addEventListener('click', closeConfirmDelete);
+  cdDlg.addEventListener('click', (e) => { if (e.target === cdDlg) closeConfirmDelete(); });
+
+  $('#cdConfirm').addEventListener('click', async () => {
+    const delId = activeId;
+    if (!delId) { closeConfirmDelete(); return; }
+    $('#cdConfirm').disabled = true;
+    const { error } = await sb.from('profiles').delete().eq('id', delId);
+    if (error) { $('#cdConfirm').disabled = false; $('#cdBanner').className = 'banner err'; $('#cdBanner').textContent = 'Erro ao excluir: ' + error.message; return; }
+    profiles = profiles.filter(p => p.id !== delId);
+    activeId = profiles.length ? profiles[0].id : null;
+    renderProfiles(); loadCollection();
+    closeConfirmDelete();
+    toast('Colecionador excluído');
+    if (!activeId) openProfileForm('create', null);
+  });
+
   // ---------- coleção (T5) ----------
   async function loadCollection() {
     counts = {};

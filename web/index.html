@@ -236,6 +236,14 @@
   #profileForm .sheet{padding:16px}
   .field select{border:1px solid var(--line);border-radius:12px;padding:11px 13px;font-size:14px;color:var(--ink);background:#F7F9FE;width:100%}
   .field select:disabled{opacity:.6;cursor:not-allowed}
+  /* Excluir colecionador */
+  #delProf{color:var(--red)}
+  .btn.red{background:var(--red)}
+  .btn.red:hover{background:#c01038}
+  dialog#confirmDelete{border:0;border-radius:16px;padding:0;width:min(440px,calc(100% - 28px));background:var(--paper);color:var(--ink);box-shadow:0 24px 64px rgba(15,20,68,.32)}
+  dialog#confirmDelete::backdrop{background:rgba(15,20,68,.45)}
+  #confirmDelete .sheet{padding:16px}
+  .dangernote{background:#FDE4EA;border:1px solid #f5b5c4;color:#a01235;border-radius:12px;padding:10px 12px;font-size:12.5px;font-weight:700;line-height:1.4;margin-bottom:10px}
 </style>
 </head>
 <body data-screen="loading">
@@ -257,6 +265,7 @@
         </div>
         <button class="mini" id="newProf">+ Novo</button>
         <button class="mini" id="renProf">Editar</button>
+        <button class="mini" id="delProf">Excluir</button>
         <span class="spacer"></span>
         <span class="muted" id="userEmail" title="conta conectada"></span>
         <button class="mini" id="logout">Sair</button>
@@ -427,6 +436,20 @@ window.SUPABASE_ANON_KEY = "eyJ...";</textarea>
       <div class="banner" id="pfBanner"></div>
       <button class="btn green block" id="pfSave" type="submit">Criar</button>
     </form>
+  </div>
+</dialog>
+
+<dialog id="confirmDelete" aria-labelledby="cdTitle">
+  <div class="sheet">
+    <div class="chead">
+      <h3 id="cdTitle">Excluir colecionador</h3>
+      <button class="x" id="cdClose" type="button" aria-label="Fechar">✕</button>
+    </div>
+    <div class="dangernote" role="alert">⚠️ Isso apaga <b>tudo</b> deste colecionador: a coleção marcada, as solicitações de troca e as conversas. <b>Não dá pra desfazer.</b></div>
+    <p class="d" id="cdName" style="margin:0 0 12px"></p>
+    <div class="banner" id="cdBanner"></div>
+    <button class="btn red block" id="cdConfirm" type="button">Sim, excluir tudo</button>
+    <button class="btn ghost block" id="cdCancel" type="button">Cancelar</button>
   </div>
 </dialog>
 
