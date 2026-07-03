@@ -285,6 +285,77 @@ function boot(sb) {
     bump(b.dataset.id, +1);
   });
 
+  // ---------- T6: procurar trocas ----------
+  function activeProfile() { return profiles.find(p => p.id === activeId) || null; }
+
+  function prefillTrade() {
+    const p = activeProfile();
+    $('#tCity').value = p?.city || '';
+    $('#tUf').value = p?.uf || '';
+  }
+
+  function escapeHtml(s) {
+    return (s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function plural(n) { return n === 1 ? '1 figurinha' : n + ' figurinhas'; }
+
+  function chipsHTML(ids, total, cls) {
+    if (!ids || !ids.length) return '<div class="cnt">—</div>';
+    let html = ids.map(id => '<span class="chip ' + cls + '" title="' + escapeHtml(NAME[id]) + '">' + id + '</span>').join('');
+    if (total > ids.length) html += '<span class="chip ' + cls + ' more">+' + (total - ids.length) + '</span>';
+    return '<div class="chips">' + html + '</div>';
+  }
+
+  function renderMatches(rows) {
+    const host = $('#tResults');
+    if (!rows.length) {
+      host.innerHTML = '<div class="empty">Ninguém por aqui ainda com troca que valha. Tente “estado inteiro” ou volte depois. 🙂</div>';
+      return;
+    }
+    host.innerHTML = rows.map(r => {
+      const local = [r.city, r.uf].filter(Boolean).join(' · ') || '—';
+      return '<div class="card">'
+        + '<div class="matchhead">'
+        + '<div><h3>' + escapeHtml(r.display_name) + '</h3><p class="d">' + escapeHtml(local) + '</p></div>'
+        + '<button class="btn green" data-to="' + r.profile_id + '">Solicitar troca</button>'
+        + '</div>'
+        + '<div class="result">'
+        + '<div class="col give"><h4>Você dá</h4><div class="cnt">' + plural(r.give_count) + '</div>' + chipsHTML(r.sample_give, r.give_count, 'b') + '</div>'
+        + '<div class="col get"><h4>Você recebe</h4><div class="cnt">' + plural(r.get_count) + '</div>' + chipsHTML(r.sample_get, r.get_count, 'g') + '</div>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  async function searchTrades() {
+    const banner = $('#tBanner'), host = $('#tResults');
+    banner.className = 'banner'; banner.textContent = '';
+    if (!activeId) { banner.className = 'banner warn'; banner.textContent = 'Escolha ou crie um colecionador primeiro.'; host.innerHTML = ''; return; }
+    const byState = $('#tState').checked;
+    const city = $('#tCity').value.trim();
+    const uf = $('#tUf').value.trim().toUpperCase().slice(0, 2);
+    const params = { p_profile: activeId, p_only_mutual: $('#tMutual').checked, p_limit: 50 };
+    if (byState) {
+      if (!uf) { banner.className = 'banner warn'; banner.textContent = 'Pra buscar pelo estado, preencha a UF.'; return; }
+      params.p_city_norm = null; params.p_uf = uf;
+    } else {
+      if (!city) { banner.className = 'banner warn'; banner.textContent = 'Preencha a cidade (ou marque “estado inteiro”).'; return; }
+      params.p_city_norm = norm(city); params.p_uf = uf || null;
+    }
+    host.innerHTML = '<div class="empty">Procurando…</div>';
+    const { data, error } = await sb.rpc('find_trade_matches', params);
+    if (error) { banner.className = 'banner err'; banner.textContent = 'Erro na busca: ' + error.message; host.innerHTML = ''; return; }
+    const rows = data || [];
+    if (rows.length) { banner.className = 'banner ok'; banner.textContent = rows.length + (rows.length === 1 ? ' pessoa encontrada.' : ' pessoas encontradas.'); }
+    renderMatches(rows);
+  }
+
+  $('#tSearch').addEventListener('click', searchTrades);
+  $('#tResults').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-to]'); if (!b) return;
+    toast('“Solicitar troca” chega na T7 🙂'); // TODO(T7): trade_preview + insert em trade_requests
+  });
+
   // ---------- abas ----------
   function tab(which) {
     const a = which === 'album';
@@ -292,6 +363,7 @@ function boot(sb) {
     $('#tabTrade').setAttribute('aria-selected', !a);
     $('#viewAlbum').classList.toggle('hide', !a);
     $('#viewTrade').classList.toggle('hide', a);
+    if (!a) { prefillTrade(); if ($('#tCity').value || $('#tUf').value) searchTrades(); }
   }
   $('#tabAlbum').onclick = () => tab('album');
   $('#tabTrade').onclick = () => tab('trade');
