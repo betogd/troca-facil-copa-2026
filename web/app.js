@@ -51,6 +51,7 @@ function boot(sb) {
     } else {
       ownerId = null; profiles = []; activeId = null; counts = {};
       if (inboxChannel) { sb.removeChannel(inboxChannel); inboxChannel = null; }
+      closeChat();
       unread = 0; updateBadge();
       screen('login');
     }
@@ -462,10 +463,13 @@ function boot(sb) {
     const offered = r.offered || [], requested = r.requested || [];
     const giveIds = kind === 'recv' ? requested : offered;   // o que EU dou (azul)
     const getIds = kind === 'recv' ? offered : requested;    // o que EU recebo (verde)
-    const actions = (kind === 'recv' && r.status === 'pending')
-      ? '<div class="btnrow"><button class="btn green" data-act="accept" data-id="' + r.id + '">Aceitar</button>'
-      + '<button class="btn ghost" data-act="decline" data-id="' + r.id + '">Recusar</button></div>'
-      : '';
+    let actions = '';
+    if (kind === 'recv' && r.status === 'pending') {
+      actions = '<div class="btnrow"><button class="btn green" data-act="accept" data-id="' + r.id + '">Aceitar</button>'
+        + '<button class="btn ghost" data-act="decline" data-id="' + r.id + '">Recusar</button></div>';
+    } else if (r.status === 'accepted') {
+      actions = '<div class="btnrow"><button class="btn blue" data-chat="' + r.id + '" data-other="' + escapeHtml(who.display_name || 'colecionador') + '">💬 Combinar encontro</button></div>';
+    }
     return '<div class="card">'
       + '<div class="reqhead">'
       + '<div><h4>' + escapeHtml(who.display_name || 'colecionador') + '</h4>'
@@ -503,10 +507,11 @@ function boot(sb) {
     loadInbox();
   }
 
-  $('#inboxRecv').addEventListener('click', (e) => {
-    const b = e.target.closest('button[data-act]'); if (!b) return;
-    b.disabled = true;
-    setStatus(b.dataset.id, b.dataset.act === 'accept' ? 'accepted' : 'declined');
+  $('#viewInbox').addEventListener('click', (e) => {
+    const act = e.target.closest('button[data-act]');
+    if (act) { act.disabled = true; setStatus(act.dataset.id, act.dataset.act === 'accept' ? 'accepted' : 'declined'); return; }
+    const chat = e.target.closest('button[data-chat]');
+    if (chat) openChat(chat.dataset.chat, chat.dataset.other || 'colecionador');
   });
 
   function subscribeInbox() {
@@ -520,8 +525,82 @@ function boot(sb) {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trade_requests', filter: 'from_profile=eq.' + activeId }, () => {
         if (currentTab === 'inbox') loadInbox();
       })
+      // Mensagens de chat: o RLS já entrega só as das minhas trocas. Avisa quando é do outro lado.
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trade_messages' }, (payload) => {
+        const m = payload.new;
+        if (!m || m.sender_profile === activeId) return;                         // minhas, ignora
+        if (chatDlg.open && chatReq && chatReq.id === m.request_id) return;       // já estou vendo essa conversa
+        unread++; updateBadge();
+        toast('Nova mensagem no chat! 💬');
+      })
       .subscribe();
   }
+
+  // ---------- Chat da troca (combinar encontro) ----------
+  const chatDlg = $('#chat');
+  let chatReq = null;            // { id, other }
+  let chatChannel = null;
+
+  async function openChat(requestId, otherName) {
+    chatReq = { id: requestId, other: otherName };
+    $('#chTitle').textContent = 'Combinar com ' + otherName;
+    $('#chThread').innerHTML = '<div class="empty">Carregando…</div>';
+    $('#chInput').value = '';
+    if (chatDlg.showModal) chatDlg.showModal(); else chatDlg.setAttribute('open', '');
+    await loadChat();
+    subscribeChat();
+    $('#chInput').focus();
+  }
+
+  async function loadChat() {
+    if (!chatReq) return;
+    const reqId = chatReq.id;
+    const { data, error } = await sb.from('trade_messages')
+      .select('*').eq('request_id', reqId).order('created_at', { ascending: true });
+    if (chatReq?.id !== reqId) return;          // fechou/trocou no meio
+    if (error) { $('#chThread').innerHTML = '<div class="empty">Erro ao carregar as mensagens.</div>'; return; }
+    renderThread(data || []);
+  }
+
+  function fmtTime(s) { try { return new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+
+  function renderThread(msgs) {
+    const host = $('#chThread');
+    if (!msgs.length) { host.innerHTML = '<div class="empty">Combinem o encontro por aqui. 👋</div>'; return; }
+    host.innerHTML = msgs.map(m => {
+      const mine = m.sender_profile === activeId;
+      return '<div class="msg ' + (mine ? 'mine' : 'theirs') + '">' + escapeHtml(m.body)
+        + '<span class="meta">' + fmtTime(m.created_at) + '</span></div>';
+    }).join('');
+    host.scrollTop = host.scrollHeight;
+  }
+
+  $('#chForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = $('#chInput').value.trim();
+    if (!body || !chatReq || !activeId) return;
+    $('#chInput').value = '';
+    const { error } = await sb.from('trade_messages').insert({ request_id: chatReq.id, sender_profile: activeId, body });
+    if (error) { $('#chInput').value = body; toast('Não deu pra enviar: ' + error.message); return; }
+    loadChat();
+  });
+
+  function subscribeChat() {
+    if (chatChannel) { sb.removeChannel(chatChannel); chatChannel = null; }
+    if (!chatReq) return;
+    chatChannel = sb.channel('chat-' + chatReq.id)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trade_messages', filter: 'request_id=eq.' + chatReq.id }, () => loadChat())
+      .subscribe();
+  }
+
+  function closeChat() {
+    if (chatChannel) { sb.removeChannel(chatChannel); chatChannel = null; }
+    if (chatDlg.open) chatDlg.close();
+    chatReq = null;
+  }
+  $('#chClose').addEventListener('click', closeChat);
+  chatDlg.addEventListener('cancel', () => { if (chatChannel) { sb.removeChannel(chatChannel); chatChannel = null; } chatReq = null; });
+  chatDlg.addEventListener('click', (e) => { if (e.target === chatDlg) closeChat(); });
 
   // ---------- abas ----------
   function tab(which) {
